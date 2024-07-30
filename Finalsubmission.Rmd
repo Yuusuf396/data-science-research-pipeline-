@@ -1,0 +1,340 @@
+
+---
+title: "STAT 1910 Project Proposal"
+author: "Group L"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    fig_caption: yes
+    theme: lumen
+    toc: yes
+    toc_depth: 2
+    df_print: kable
+    toc_float:
+      collapsed: no
+---
+
+```{r, include=FALSE}
+# Do not edit this code block/chunk
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE, fig.width = 16/2.5, fig.height = 9/2.5)
+```
+
+
+```{r}
+# Load all necessary packages here:
+library(ggplot2)
+library(dplyr)
+library(janitor)
+library(moderndive)
+library(readr)
+library(knitr)
+library(statsr)
+library(broom)
+```
+
+```{r}
+library(tidyverse)
+library(openintro)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+airquality <- rename(airquality,"Solar_radiation"= "Solar.R", "Temperature" = "Temp", "Windspeed"= "Wind")
+aq <- data.frame(airquality)
+aq$Month <- factor(aq$Month, levels = 5:9, labels = month.abb[5:9], ordered = TRUE)
+aq <- aq %>%
+  mutate(Season = case_when(Month == 'May' ~ 'Spring',Month == 'Jun' ~ 'Summer', Month == 'Jul' ~ 'Summer', Month == 'Aug' ~ 'Summer', Month == 'Sep' ~ 'Fall'))
+aq <- aq |>
+  filter(Ozone != "<NA>")|>
+  filter(Solar_radiation != "<NA>") |>
+  droplevels()
+glimpse(aq)
+```
+
+
+
+
+![](https://i2.wp.com/www.markstivers.com/cartoons/Stivers%2011-9-02%20SAT%20waiter.gif?zoom=2_){ width=400px }
+
+# 1. Introduction 
+
+We often experience drastic ozone changes as temperature changes. This study aims to better understand how temperature affects ozone with respect to Seasons. Ozone occurs both in the Earth’s upper atmosphere and at ground level. Ozone can be good or bad depending on where it is found. Our Ozone here is measured in parts per billion. Our project investigates when these factors such as change in Temperature and Seasons in New York are related to Ozone changes.
+
+To address this question we used an inbuilt R dataset called “air quality” that compiled information on daily air quality measurements from May 1, 1973 to September 30, 1973 in New York. The Source of the inbuilt R dataset is gotten from the New York State Department of Conservation ( ozone data ) and the National Weather Service ( meteorological data ). Each case in our dataset tells us about the air quality of a data in New York within our specified date range.
+
+While doing our exploratory data analysis, we noticed an association between “Temperature” and “Ozone” with respect to “Season” therefore we decided to focus solely on “Ozone” as our outcome variable while our explanatory numerical variable is “Temperature”. We also included a categorical explanatory variable which is “Season”. Our season variable has 3 levels, “spring” ( May ), “Summer” ( June - August ), “Fall” ( September ).
+Here is a snapshot of 5 randomly chosen rows of the data set we’ll use:
+
+```{r}
+aq %>% 
+  sample_n(5)
+```
+
+
+
+***
+
+
+
+# 2. Exploratory data analysis
+
+We had an original sample of 153 rows and 6 variables, however since we had 44 missing values or “NA” with 37 in the Ozone variable and 7 in the Solar_radiation variable because of that we dropped these rows from consideration. Unfortunately, no information was provided as to why some observations had missing values and most did not, so we can not comment on the impact dropping these missing cases has on our results
+
+Our total sample size was 111. The mean of the ozone was greatest for summer season ( n = 58, mean = 54.9, sd = 35.8 ), intermediate for fall ( n = 29, mean = 31.4, sd = 24.1 ) and lowest for spring ( n = 24, mean = 24.1, sd = 22.9 )
+
+The mean Temperature in our specified date range was 77.79 ( sd = 9.53 )
+
+```{r}
+aq %>% 
+  summarize(min = min(Temperature), 
+            max = max(Temperature), 
+            mean = mean(Temperature), 
+            sd = sd(Temperature))
+```
+
+
+Table 1. Summary statistics of Ozone for Spring, Summer, Fall in state of New York from May 1 - September 30, in 1973
+
+
+```{r}
+aq %>% 
+  group_by(Season) %>% 
+  summarize(n = n(),
+            mean = mean(Ozone, na.rm = T), 
+            median = median(Ozone, na.rm = T), 
+            sd = sd(Ozone, na.rm = T), 
+            min = min(Ozone, na.rm = T), 
+            max = max(Ozone, na.rm = T))
+```
+
+***
+
+Looking at the distribution of Ozone in Figure 1, it does appear to be right skewed and thus we did not apply any transformations. We did notice a potential outlier around an Ozone measurement of 135 and 168, which is something to consider throughout our analysis.
+
+```{r, fig.cap = "Figure 1. Distribution of Ozone in the State of New York from May - September 1973", fig.align = "center"}
+ggplot(aq, aes(x = Ozone)) +
+  geom_histogram(binwidth = 8, color = "white", fill = "steelblue") +
+  labs(x = "Ozone", y = "Frequency") 
+```
+
+In Figure 2, we generated a scatterplot to see the overall relationship between our numerical outcome variable Ozone and our numerical explanatory variable Temperature. As the Temperature increased, there was an associated increase in Ozone. Consistent with this relationship is this is positive correlation coefficient of 0.699. 
+
+```{r include = F}
+aq %>%  
+  summarize(cor(Ozone, Temperature))
+```
+
+```{r, fig.cap = "Figure 2. Scatterplot of relationship between Ozone and Temperature in New York from May - Semptember 1973.", fig.align = "center"}
+ggplot(aq, aes(x = Temperature, y = Ozone))+
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE ) +
+  labs(y = "Ozone", x = "Temperature")
+```
+
+Looking at Figure 3, which displays the relationship between our numerical outcome variable Ozone and our categorical explanatory variable Season, the mean Ozone look to be the greatest in Summer, and the lowest in spring, though the difference does not seem to be extreme. Furthemore, there appear to be some potential outliers. In particular, there is a day in summer with a very high mean Ozone. Summer also have the largest variation in Ozone as evidenced by the largest interquartile range.
+
+```{r, fig.cap = "Figure 3. Boxplot of relationship between Ozone and Season category in New York from May - September 1973", fig.align = "center"}
+ggplot(aq, aes(x = Season, y = Ozone)) +
+  geom_boxplot(fill = c("sienna", "darkgreen", "steelblue")) +
+  labs(y = "Ozone", x = "Season")
+```
+
+Finally, we generated a colored scatterplot displaying the relationship between all three variables at once in Figure 4.  While this plot corresponds to an interaction model where we allow for each regression line corresponding to each season to have a different slope, we observe that there appear to be an interaction effect as the 3 slopes do not seem roughly equal . 
+
+```{r, fig.cap = "Figure 4. Colored scatterplot of relationship between Ozone and both Temperature and Season in New York from May - September 1973.", fig.align = "center"}
+ggplot(aq, aes(x = Temperature, y = Ozone, color = Season))+
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE ) +
+  labs(y = "Ozone", x = "Temperature")
+```
+
+
+
+***
+
+
+
+# 3. Multiple linear regression
+
+## 3.1 Methods
+
+The components of our multiple linear regression model are the following:
+
+* Outcome variable $y$ = Ozone
+* Numerical explanatory variable $x_1$ = Temperature
+* Categorical explanatory variable $x_2$ = Season
+
+where the unit of analysis is day, given that each row in our dataset corresponds to a different day in its corresponding month. As discussed earlier, we did not include an interaction effect because the slopes appear to be reasonably parallel in Figure 4. 
+
+
+## 3.2 Model Results
+
+***
+
+Table 2. Regression table of parallel slopes model of Ozone as a function of Temperature and Season.
+ 
+```{r}
+aqmodel <- lm(Ozone ~ Temperature + Season, data = aq)
+get_regression_table(aqmodel)
+```
+
+***
+
+## 3.3 Interpreting the regression table
+
+The regression equation for Ozone is the following:
+
+$$
+\begin{aligned}\widehat {score} =& b_{0} + b_{temp} \cdot temp + b_{spring} \cdot 1_{is\ spring}(x_2) + b_{summer} \cdot 1_{is\ summer}(x_2) \\
+ =& -189.764 + 2.877 \cdot temp + 22.705 \cdot 1_{is\ spring}(x_2) + 6.054 \cdot 1_{is\ summer}(x_2)
+\end{aligned} 
+$$
+
+* Acoording to our model ,The level of Ozone ($b_0$ = -189.764) is expected to be 189.764 Dobson Unit less,When temperature of the day is zero degrees Fahrenheit  and it is Fall season (Table 2).
+
+* The estimate for the slope for Temperature ($b_{temp}$ = 2.877) is the associated change in Ozone depending on the Temperature. Based on this estimate, for every unit increase in Temperature degree Fahrenheit in a Season,the level of Ozone is expected to increase on average by 2.877,all else being equal.
+ 
+* The estimate for Seasonspring ($b_{spring}$ = 22.705) and Seasonsummer ($b_{summer}$ = 6.054) are the offsets in intercept relative to the baseline Season's, Seasonfall intercept (Table 2). In other words, on average spring Season has 22.705  mean Ozone levels higher than fall while summer has on average 6.054 higher mean ozone than fall.
+
+Thus the three regression lines have equations:
+
+$$
+\begin{aligned}
+\text{Fall Season (in red)}: \widehat {Ozone} =& -189.764 + 2.877 \cdot temp\\
+\text{Spring Season (in green)}: \widehat {Ozone} =& -167.059 + 2.877 \cdot temp\\
+\text{Summer Season (in blue)}: \widehat {Ozone} =& -183.710 + 2.877 \cdot temp
+\end{aligned} 
+$$
+
+## 3.4 Inference for multiple regression
+Using the output of our regression table we’ll test two different null hypotheses.The first null hypothesis is that there is no relationship between the Temperature in Fahrenheit and Ozone level (the population slope is zero).
+
+$$
+\begin{aligned}
+\text H_{0} :& \beta_{temp} = 0\\
+\text vs\ H_{a} :& \beta_{temp} ≠ 0\\
+\end{aligned} 
+$$
+There appears to be a positive relationship between the Temperature in Fahrenheit and Ozone Level is 2.877
+
+* The 95% confidence interval for the population slope $β_{temp}$ is (2.25211,3.50189),entirely on the positive side.
+
+* Using a  0.5 significant level,our p-value being 0 provides significant evidence against the null hypothesis $H_{0}$ that $β_{temp}$ = 0,in the favor of the alternative $H_{A}$ 
+
+The second set of null hypotheses that we are test are that all the differences in intercept for the non-baseline groups are zero.
+
+$$
+\begin{aligned}
+\text H_{0} :& \beta_{spring} = 0\\
+\text vs\ H_{a} :& \beta_{spring} ≠ 0\\
+\end{aligned} 
+$$
+and
+$$
+\begin{aligned}
+\text H_{0} :& \beta_{summer} = 0\\
+\text vs\ H_{a} :& \beta_{summer} ≠ 0\\
+\end{aligned} 
+$$
+In other words “is the intercept for the Ozone level equal to the intercepts for the rest of the variables or not?” While both observed differences in intercept were positive ($b_{spring}$ = 22.705, $b_{summer}$ = 6.054) we observe in Table 2 that
+
+* The 95% confidence intervals for the population difference in intercept
+$β_{summer}$  include 0:  (-4.9903,17.0983 ) but the $β_{spring}$ (8.52435, 36.88565) doesn't,So it is plausible that the difference of those intercepts are not zero, hence it is plausible that all intercepts are not the same.
+
+* The p-value of summer season variable is fairly large (0.281), unlike the p-value of spring variable (0.002), so we fail to reject the null hypothesis of the summer season variable that it is 0,we reject the null hypothesis $H_{0}$ that $β_{spring}$ = 0 in the favor of the alternative  $H_{A}$ when dealing with the spring season variable
+
+So it appears the differences in intercept except one are  meaningfully different from 0, and hence only one out of three is not roughly equal.
+
+## 3.5 Residual Analysis
+We conducted a residual analysis to see if there was any systematic pattern of residuals for the statistical model we ran. Because if there are systematic patterns, then we cannot fully trust our confidence intervals and p-values above.
+
+```{r, fig.cap = "Figure 5. Histogram of residuals for statistical model.", fig.align = "center"}
+ 
+residuals <- rstandard(aqmodel)
+aq <- cbind(aq,residuals)
+ggplot(aq, aes(x = residuals)) +
+  geom_histogram() + labs(x="Residual")
+```
+
+```{r, fig.cap = "Figure 6. Scatterplots of residuals against the temperature variable.", fig.align = "center"}
+ggplot(aq, aes(x=Temperature, y=residuals)) +
+  geom_jitter()  +
+  geom_smooth(method = "lm", se = FALSE ) + 
+  labs(x="Temperature(F)", y="Residual")
+```
+```{r, fig.cap = "Figure 7. Scatterplots of residuals against the fitted values.", fig.align = "center"}
+fitted_values <- fitted(aqmodel)
+ggplot(aq, aes(x=fitted_values, y=residuals)) +
+  geom_jitter() +
+  geom_smooth(method = "lm", se = FALSE ) +
+  labs(x="Fitted Values", y="Residual")
+```
+
+```{r, fig.cap = "Figure 8. Boxplot of residuals for each Season", fig.align = "center"}
+coefficients <- coef(lm(residuals ~ Season, data = aq))
+ggplot(aq, aes(x=Season, y=residuals)) +
+  geom_boxplot() +
+  geom_abline(intercept = coefficients[1], slope = coefficients[2]) +
+  labs(x="Season", y="Residual")
+```
+
+The model residuals were normally distributed, though there was one potential outlier (Fig. 5).There are not any systematic patterns to either of the scatterplots (Fig 6 & 7). There is, however, one clear outlier around 82F in Figure 6 and a very high outlier of around 50 in Figure 7.The box plot also shows a fairly similar spread of residuals across the Season but different values. There is also a very extreme outlier in the Summer season. We conclude that the assumptions for inference in multiple linear regression are well met. However,  it might be worthwhile to look at whether the outlier in the summer season had a very large influence on the conclusions.  
+
+# 4. Discussion 
+
+## 4.1 Conclusions
+
+We found that there was no significant difference in Ozone at different season,but that as temperature increased, the Ozone levels increased significantly. On average, Ozone levels increased by on average 3 points for every one unit increase in Temperature. This however does not necessarily mean that Temperature causes increased Ozone levels, merely that they are associated. We were surprised to see that seasons did not have a significant influence on Ozone levels. We expected to see higher Ozone levels in Summer, assuming that heat waves begin to rise.
+Overall, these results suggest that the Temperature is a factor in Ozone level changes. Our findings are consistent with previous studies showing that found ozone is tightly correlated with temperature, which in turn is tightly correlated with other meteorological variables such as solar radiation, circulation, and atmospheric stagnation in the Havard Gazette. In order to mitigate this, we believe that there should be more lowered emissions of organic compounds and proper regulation of the production and consumption of numerous substances that deplete the ozone layer, the Earth’s atmospheric shield that prevents UV radiation from harming humans and other forms of life. Furthermore, programs that help to educate people about climate change, global warming and the health consequences of dangerous ozone levels may benefit overall student learning, and outcomes. The trends found in this analysis are important because Ozone levels are a factor in our everyday health.
+
+## 4.2 Limitations
+
+There were several limitations to this data set. For one, 37 out of the 153 days were missing Ozone data. A close inspection revealed that these were mostly during the summer season in the month of june. Furthermore, these data is only for the state of New York from the months of May-September 1973. As such, our scope of inference is limited to New York during that time span; it may not be appropriate to generalize the results found to the country as a whole.
+
+## 4.3 Further questions
+
+If we were to continue researching this topic, we would like to work with a data set that includes Ozone levels across all states in a full calendar year. This would give us better ideas of Ozone levels across different states. It would also be ideal to use a data set also includes several years worth of data so that we can see if the trends shown persist from year to year. Finally, it would be interesting to incorporate other explanatory variables, particularly ones that policy makers could address through funding programs or laws. The results from this sort of study could be given to the state of New York environmental department so they can make more informed decisions about climate practices prior or during times of drastic ozone level changes.
+Since our results strongly suggest that Temperature is correlated to Ozone levels, it would be interesting to investigate the temperature distribution across more temperate cities or states and the adverse effects of the ozone level changes.
+
+*** 
+
+
+
+# 5. Author Statement
+
+## Individual Roles
+
+Facilitator : Yuusuf Adebayo : Made edits and worked on the dataset like the wrangling aspect, ensured everybody participated and submitted the data proposal.
+
+Checker : Okolie Johnviany : Proof-read the code and made slight changes.
+
+Time-Keeper : Abduljalal Ibn Abduljalal : Made sure we worked in line with our created schedule and meeting dates.
+
+Reporter: Daniel Nejo : Made extra findings on  a suitable dataset to use and how to improve it.
+
+Recorder : Charles ANonyuo : Took notes of points made during group discussions for future referrals.
+
+
+
+## Individual Contribution
+
+_If your group were to earn 5 points on this submission, how should those points be shared across your group members?_
+Abduljalal Ibn Abduljalal gets 0.8 point, 
+Okolie Johnviany gets 1.0 point, 
+Yuusuf Adebayo gets 1.2 points, 
+Daniel Nejo gets 0.8 point, 
+Anonyuo Charles gets 1.2 points. 
+
+
+***
+
+
+# 6. Citations and References {-}
+
+1.Donald,Wuebbles.Ozone depletion(atmospheric phenomenon).Britannica,November 2023. 
+https://www.britannica.com/science/ozone-depletion
+
+2.United States Environmental Protection Agency.Ground-level Ozone Basics.June 2023.
+https://www.epa.gov/ground-level-ozone-pollution/ground-level-ozone-basics
+
+3.The Havard Gazette."The complex relationship between heat and ozone".April 2016.
+https://news.harvard.edu/gazette/story/2016/04/the-complex-relationship-between-heat-and-ozone/
